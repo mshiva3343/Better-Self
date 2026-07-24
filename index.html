@@ -428,6 +428,65 @@
   }
   .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--good);flex-shrink:0;}
   .sync-dot.offline{background:var(--gold);}
+  .stats-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:18px;
+  }
+  .stat-box{
+    flex:1;
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:12px 8px;
+    text-align:center;
+  }
+  .stat-num{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:19px;
+    color:var(--gold);
+    line-height:1;
+    margin-bottom:4px;
+  }
+  .stat-label{
+    font-size:10px;
+    color:var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+  }
+  .chart-section-label{
+    font-size:11px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    font-weight:600;
+    margin:16px 0 8px;
+  }
+  .chart-section-label:first-of-type{margin-top:0;}
+  #weightChartWrap svg{width:100%;height:auto;display:block;}
+  .heatmap-scroll{
+    overflow-x:auto;
+    padding-bottom:4px;
+  }
+  .heatmap-scroll svg{display:block;}
+  .heatmap-legend{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    font-size:10px;
+    color:var(--text-muted);
+    margin-top:8px;
+    justify-content:flex-end;
+  }
+  .hm-swatch{
+    width:10px;height:10px;
+    border-radius:2px;
+    display:inline-block;
+  }
+  .hm-0{background:var(--surface-2);}
+  .hm-1{background:var(--gold-dim);}
+  .hm-2{background:var(--good);}
 </style>
 </head>
 <body>
@@ -618,6 +677,38 @@
       <span>Start: <b id="startWeightLabel">97 kg</b></span>
       <span>Latest: <b id="latestWeight">—</b></span>
       <span>Target: <b id="targetWeightLabel">75 kg</b></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px;">Your Progress</div>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-num" id="statConsistency">—</div>
+        <div class="stat-label">Consistency</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="statStreak">—</div>
+        <div class="stat-label">Current Streak</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="statBest">—</div>
+        <div class="stat-label">Best Streak</div>
+      </div>
+    </div>
+
+    <div class="chart-section-label">Weight Trend</div>
+    <div id="weightChartWrap"></div>
+
+    <div class="chart-section-label">Daily Consistency</div>
+    <div class="heatmap-scroll" id="heatmapWrap"></div>
+    <div class="heatmap-legend">
+      <span>Less</span>
+      <span class="hm-swatch hm-0"></span>
+      <span class="hm-swatch hm-1"></span>
+      <span class="hm-swatch hm-2"></span>
+      <span>More</span>
     </div>
   </div>
 
@@ -930,6 +1021,7 @@ document.getElementById('logWeightBtn').addEventListener('click', ()=>{
   latestWeightEl.textContent = `${val} kg`;
   weightInput.value='';
   flash('Weight logged ✓');
+  renderWeightChart();
 });
 
 /* ---------------- streak strip ---------------- */
@@ -970,6 +1062,164 @@ async function refreshStreak(){
     if(results[i]) streak++; else break;
   }
   streakCount.innerHTML = streak>0 ? `<b>🔥 ${streak} day${streak===1?'':'s'}</b> streak` : `No active streak yet — today's a good day to start`;
+  refreshProgress();
+}
+
+/* ---------------- progress dashboard ---------------- */
+let allDaysMap = {};
+
+async function loadAllDays(){
+  allDaysMap = {};
+  try{
+    const snap = await getDocs(collection(db, 'users', uid, 'days'));
+    snap.forEach(d => { allDaysMap[d.id] = d.data(); });
+  }catch(e){ console.error('loadAllDays failed', e); }
+  // make sure today's in-memory state (may not be saved yet) is reflected
+  allDaysMap[today] = dayData;
+}
+
+function dateRangeStrings(startStr, endDate){
+  const start = parseIsoDate(startStr);
+  const out = [];
+  const cur = new Date(start);
+  while(cur <= endDate){
+    out.push(isoDate(cur));
+    cur.setDate(cur.getDate()+1);
+  }
+  return out;
+}
+
+function computeAndRenderStats(){
+  const dayNum = dayNumberFor(now, settings);
+  const statConsistency = document.getElementById('statConsistency');
+  const statStreak = document.getElementById('statStreak');
+  const statBest = document.getElementById('statBest');
+
+  if(dayNum < 1){
+    statConsistency.textContent = '—';
+    statStreak.textContent = '—';
+    statBest.textContent = '—';
+    return;
+  }
+
+  const dates = dateRangeStrings(settings.startDate, now);
+  let fullCount = 0, best = 0, running = 0, current = 0;
+  dates.forEach((dStr, idx) => {
+    const rec = allDaysMap[dStr];
+    const hit = !!(rec && rec.fitnessDone && rec.skillDone);
+    if(hit){ fullCount++; running++; if(running>best) best=running; }
+    else { running = 0; }
+  });
+  // current streak = trailing run ending today
+  for(let i=dates.length-1;i>=0;i--){
+    const rec = allDaysMap[dates[i]];
+    const hit = !!(rec && rec.fitnessDone && rec.skillDone);
+    if(hit) current++; else break;
+  }
+  const pct = dates.length ? Math.round((fullCount/dates.length)*100) : 0;
+  statConsistency.textContent = `${pct}%`;
+  statStreak.textContent = current;
+  statBest.textContent = best;
+}
+
+function renderHeatmap(){
+  const wrap = document.getElementById('heatmapWrap');
+  const dayNum = dayNumberFor(now, settings);
+  if(dayNum < 1){
+    wrap.innerHTML = `<div class="nn-sub">Your heatmap fills in once Day 1 starts.</div>`;
+    return;
+  }
+  const dates = dateRangeStrings(settings.startDate, now);
+  const startDay = parseIsoDate(settings.startDate);
+  const leadingBlanks = startDay.getDay(); // 0=Sun
+  const cell = 11, gap = 3;
+  const totalCells = leadingBlanks + dates.length;
+  const weeks = Math.ceil(totalCells / 7);
+  const w = weeks*(cell+gap)+gap;
+  const h = 7*(cell+gap)+gap;
+
+  let rects = '';
+  for(let i=0;i<dates.length;i++){
+    const cellIndex = leadingBlanks + i;
+    const col = Math.floor(cellIndex/7);
+    const row = cellIndex%7;
+    const rec = allDaysMap[dates[i]];
+    let cls = 'hm-0';
+    if(rec){
+      if(rec.fitnessDone && rec.skillDone) cls = 'hm-2';
+      else if(rec.fitnessDone || rec.skillDone) cls = 'hm-1';
+    }
+    const x = gap + col*(cell+gap);
+    const y = gap + row*(cell+gap);
+    rects += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="2" class="${cls}"><title>${dates[i]}</title></rect>`;
+  }
+  wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="min-width:${w}px;">${rects}</svg>`;
+  // apply fill colors via CSS classes using currentColor trick isn't set up, so set fills directly
+  wrap.querySelectorAll('rect').forEach(r=>{
+    if(r.classList.contains('hm-0')) r.setAttribute('fill','#242a3a');
+    else if(r.classList.contains('hm-1')) r.setAttribute('fill','#7a5f2b');
+    else r.setAttribute('fill','#5fd68a');
+  });
+}
+
+function renderWeightChart(){
+  const wrap = document.getElementById('weightChartWrap');
+  if(!weightLog || weightLog.length===0){
+    wrap.innerHTML = `<div class="nn-sub">Log your weight to start seeing the trend.</div>`;
+    return;
+  }
+  const sorted = weightLog.slice().sort((a,b)=> a.date < b.date ? -1 : 1);
+  const startDate = parseIsoDate(settings.startDate);
+  const targetDate = new Date(startDate);
+  targetDate.setDate(targetDate.getDate() + (parseInt(settings.totalDays,10)||450));
+
+  const allWeights = sorted.map(e=>e.weight).concat([settings.startWeight, settings.targetWeight]);
+  const maxW = Math.max(...allWeights) + 1.5;
+  const minW = Math.min(...allWeights) - 1.5;
+
+  const totalSpanMs = targetDate - startDate;
+  const padL = 34, padR = 10, padT = 10, padB = 20;
+  const chartW = 320, chartH = 120;
+  const W = chartW + padL + padR, H = chartH + padT + padB;
+
+  function xFor(dateStr){
+    const d = parseIsoDate(dateStr);
+    const frac = totalSpanMs>0 ? (d - startDate) / totalSpanMs : 0;
+    return padL + Math.max(0,Math.min(1,frac)) * chartW;
+  }
+  function yFor(weight){
+    const frac = (maxW - weight) / (maxW - minW || 1);
+    return padT + frac * chartH;
+  }
+
+  const goalX1 = xFor(settings.startDate), goalY1 = yFor(settings.startWeight);
+  const goalX2 = xFor(isoDate(targetDate)), goalY2 = yFor(settings.targetWeight);
+
+  const points = sorted.map(e => `${xFor(e.date).toFixed(1)},${yFor(e.weight).toFixed(1)}`).join(' ');
+  const dots = sorted.map(e => `<circle cx="${xFor(e.date).toFixed(1)}" cy="${yFor(e.weight).toFixed(1)}" r="3" fill="#4fd1c5"><title>${e.date}: ${e.weight}kg</title></circle>`).join('');
+
+  const todayX = xFor(today);
+
+  wrap.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+chartH}" stroke="#2e3448" stroke-width="1"/>
+      <line x1="${padL}" y1="${padT+chartH}" x2="${padL+chartW}" y2="${padT+chartH}" stroke="#2e3448" stroke-width="1"/>
+      <text x="2" y="${padT+4}" font-size="9" fill="#8890a6" font-family="Inter,sans-serif">${maxW.toFixed(0)}</text>
+      <text x="2" y="${padT+chartH}" font-size="9" fill="#8890a6" font-family="Inter,sans-serif">${minW.toFixed(0)}</text>
+      <line x1="${goalX1.toFixed(1)}" y1="${goalY1.toFixed(1)}" x2="${goalX2.toFixed(1)}" y2="${goalY2.toFixed(1)}" stroke="#f2b84b" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>
+      <line x1="${todayX.toFixed(1)}" y1="${padT}" x2="${todayX.toFixed(1)}" y2="${padT+chartH}" stroke="#4a5068" stroke-width="1" stroke-dasharray="2,2"/>
+      <polyline points="${points}" fill="none" stroke="#4fd1c5" stroke-width="2"/>
+      ${dots}
+    </svg>
+  `;
+}
+
+async function refreshProgress(){
+  if(!uid) return;
+  await loadAllDays();
+  computeAndRenderStats();
+  renderHeatmap();
+  renderWeightChart();
 }
 
 /* ---------------- settings & profile save (drawer) ---------------- */
@@ -1005,6 +1255,7 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
   applySettings();
   flash('Saved ✓');
   closeDrawer();
+  refreshProgress();
 });
 
 document.getElementById('resetSettingsBtn').addEventListener('click', async ()=>{
