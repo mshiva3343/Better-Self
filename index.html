@@ -865,9 +865,17 @@ function renderDayCounter(){
   }
 }
 
-const hoursNow = now.getHours() + now.getMinutes()/60;
-const angle = (hoursNow/24)*360;
-document.getElementById('nowMarker').style.transform = `translate(-50%,0) rotate(${angle}deg)`;
+function updateNowMarker(){
+  const n = new Date();
+  const hoursNow = n.getHours() + n.getMinutes()/60;
+  const angle = (hoursNow/24)*360 + 180; // +180: marker's resting orientation points down, ring's 0% is at top
+  document.getElementById('nowMarker').style.transform = `translate(-50%,0) rotate(${angle}deg)`;
+}
+updateNowMarker();
+setInterval(updateNowMarker, 60000); // keep it live while the app stays open
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) updateNowMarker(); }); // catches iOS resuming a frozen/backgrounded PWA
+window.addEventListener('pageshow', updateNowMarker);
+window.addEventListener('focus', updateNowMarker);
 
 function buildRingGradient(s){
   const blocks = [
