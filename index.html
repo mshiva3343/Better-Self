@@ -36,7 +36,7 @@
     background:var(--bg);
     color:var(--text);
     font-family:'Inter',system-ui,sans-serif;
-    padding:28px 16px 48px;
+    padding: max(28px, env(safe-area-inset-top) + 20px) 16px 48px;
     max-width:480px;
     margin:0 auto;
     min-height:100%;
@@ -309,12 +309,35 @@
   }
 
   .app{position:relative;}
-  .profile-btn{
-    position:fixed;
-    top:16px; right:16px;
-    width:38px; height:38px;
+  .photo-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom:16px;
+  }
+  .photo-preview{
+    width:64px;height:64px;
     border-radius:50%;
     background:var(--surface-2);
+    border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:24px;
+    flex-shrink:0;
+    background-size:cover;
+    background-position:center;
+    overflow:hidden;
+  }
+  .photo-controls{display:flex;flex-direction:column;}
+  .photo-controls .btn{font-size:12px;padding:7px 12px;}
+  .profile-btn{
+    position:fixed;
+    top: max(16px, env(safe-area-inset-top) + 10px);
+    right: max(16px, env(safe-area-inset-right) + 10px);
+    width:42px; height:42px;
+    border-radius:50%;
+    background:var(--surface-2);
+    background-size:cover;
+    background-position:center;
     border:1px solid var(--line);
     color:var(--text);
     display:flex;align-items:center;justify-content:center;
@@ -322,9 +345,13 @@
     font-weight:600;
     font-size:14px;
     cursor:pointer;
-    z-index:50;
+    z-index:60;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
+    overflow:hidden;
   }
   .profile-btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+  .profile-btn:active{transform:scale(0.94);}
 
   .drawer-overlay{
     position:fixed; inset:0;
@@ -417,7 +444,8 @@
   .auth-box input{margin-bottom:0;}
   .sync-badge{
     position:fixed;
-    top:16px; left:16px;
+    top: max(16px, env(safe-area-inset-top) + 10px);
+    left: max(16px, env(safe-area-inset-left) + 10px);
     font-size:10px;
     color:var(--text-muted);
     background:var(--surface-2);
@@ -517,6 +545,18 @@
   </div>
 
   <div class="section-label">About You</div>
+
+  <div class="photo-row">
+    <div class="photo-preview" id="photoPreview">👤</div>
+    <div class="photo-controls">
+      <label class="btn" style="cursor:pointer;display:inline-block;">
+        Choose Photo
+        <input type="file" accept="image/*" id="setPhotoInput" style="display:none;">
+      </label>
+      <button class="btn" id="removePhotoBtn" style="margin-top:6px;background:transparent;">Remove</button>
+    </div>
+  </div>
+
   <div class="field-label">Name</div>
   <input type="text" id="setName" placeholder="Your name" style="margin-bottom:10px;">
   <div class="field-label">Sex</div>
@@ -562,6 +602,14 @@
     <input type="number" id="setTargetWeight" step="0.1" placeholder="Target">
   </div>
 
+  <div class="section-label">Non-Negotiable Targets</div>
+  <div class="field-label">Sleep</div>
+  <input type="text" id="setSleepTarget" placeholder="e.g. 7–8 hrs sleep" style="margin-bottom:10px;">
+  <div class="field-label">Protein</div>
+  <input type="text" id="setProteinTarget" placeholder="e.g. Protein target hit" style="margin-bottom:10px;">
+  <div class="field-label">Water</div>
+  <input type="text" id="setWaterTarget" placeholder="e.g. 4–5L water" style="margin-bottom:10px;">
+
   <div class="drawer-actions">
     <button class="btn gold" id="saveSettingsBtn">Save</button>
     <button class="btn" id="resetSettingsBtn">Reset</button>
@@ -603,7 +651,7 @@
     <div class="card-head">
       <div>
         <div class="card-title">Morning Movement</div>
-        <div class="card-time" id="fitTimeLabel">Cult.fit · 8:00 – 9:00 AM</div>
+        <div class="card-time" id="fitTimeLabel">8:00 AM – 9:00 AM</div>
       </div>
       <div class="check" id="fitCheck" tabindex="0" role="checkbox" aria-checked="false" aria-label="Mark fitness done">✓</div>
     </div>
@@ -616,7 +664,7 @@
     <div class="card-head">
       <div>
         <div class="card-title">Skill Block</div>
-        <div class="card-time" id="skillTimeLabel">KodeKloud + Certs · 10:00 AM – 12:30 PM</div>
+        <div class="card-time" id="skillTimeLabel">10:00 AM – 12:30 PM</div>
       </div>
       <div class="check" id="skillCheck" tabindex="0" role="checkbox" aria-checked="false" aria-label="Mark skill block done">✓</div>
     </div>
@@ -632,38 +680,28 @@
   <div class="card">
     <div class="card-title" style="margin-bottom:6px;">Non-Negotiables</div>
     <div class="nn-row">
-      <div class="check-sm" id="sleepCheck" tabindex="0" role="checkbox" aria-checked="false" aria-label="Mark 7-8 hours sleep">✓</div>
+      <div class="check-sm" id="sleepCheck" tabindex="0" role="checkbox" aria-checked="false" aria-label="Mark sleep target hit">✓</div>
       <div>
-        <div class="nn-label">7–8 hrs sleep</div>
-        <div class="nn-sub">Undoes good training faster than anything else</div>
+        <div class="nn-label" id="sleepLabel">7–8 hrs sleep</div>
       </div>
     </div>
     <div class="nn-row">
       <div class="check-sm" id="proteinCheck" tabindex="0" role="checkbox" aria-checked="false" aria-label="Mark protein target hit">✓</div>
       <div>
-        <div class="nn-label">Protein target hit</div>
-        <div class="nn-sub">~1.6g/kg — chicken, eggs, fish, prawns</div>
+        <div class="nn-label" id="proteinLabel">Protein target hit</div>
       </div>
     </div>
     <div class="nn-row">
       <div class="check-sm" id="waterCheck" tabindex="0" role="checkbox" aria-checked="false" aria-label="Mark water target hit">✓</div>
       <div>
-        <div class="nn-label">4–5L water</div>
-        <div class="nn-sub">Spread across the day, more on training days</div>
+        <div class="nn-label" id="waterLabel">4–5L water</div>
       </div>
     </div>
     <div class="nn-row">
       <div class="check-sm" id="moveBreakCheck" tabindex="0" role="checkbox" aria-checked="false" aria-label="Mark movement break during shift">✓</div>
       <div>
         <div class="nn-label">Movement break during shift</div>
-        <div class="nn-sub">2–3 min stand/stretch every couple hours — protects the back on a 9-hr desk shift</div>
-      </div>
-    </div>
-    <div class="nn-row">
-      <div class="check-sm" id="caffeineCheck" tabindex="0" role="checkbox" aria-checked="false" aria-label="Mark caffeine cutoff kept">✓</div>
-      <div>
-        <div class="nn-label">Caffeine cutoff by 6 PM</div>
-        <div class="nn-sub">Protects sleep given how close your shift runs to midnight</div>
+        <div class="nn-sub">2–3 min stand/stretch every couple hours</div>
       </div>
     </div>
   </div>
@@ -764,14 +802,17 @@ const DEFAULT_SETTINGS = {
   fitStart: '08:00', fitEnd: '09:00',
   skillStart: '10:00', skillEnd: '12:30',
   workStart: '14:00', workEnd: '23:00',
-  startWeight: 97, targetWeight: 75
+  startWeight: 97, targetWeight: 75,
+  sleepTarget: '7–8 hrs sleep',
+  proteinTarget: 'Protein target hit',
+  waterTarget: '4–5L water'
 };
-const DEFAULT_PROFILE = { name:'', sex:'', age:'' };
+const DEFAULT_PROFILE = { name:'', sex:'', age:'', photoURL:'' };
 
 let settings = Object.assign({}, DEFAULT_SETTINGS);
 let profile = Object.assign({}, DEFAULT_PROFILE);
 let weightLog = [];
-let dayData = { fitnessDone:false, fitnessNote:'', skillDone:false, skillHours:2.5, skillNote:'', sleepDone:false, proteinDone:false, waterDone:false, moveBreakDone:false, caffeineDone:false };
+let dayData = { fitnessDone:false, fitnessNote:'', skillDone:false, skillHours:2.5, skillNote:'', sleepDone:false, proteinDone:false, waterDone:false, moveBreakDone:false };
 
 function isoDate(d){
   const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
@@ -862,10 +903,13 @@ function applySettings(){
   document.getElementById('legendFit').textContent = `Fitness ${fmtTime(settings.fitStart)}–${fmtTime(settings.fitEnd)}`;
   document.getElementById('legendSkill').textContent = `Skill ${fmtTime(settings.skillStart)}–${fmtTime(settings.skillEnd)}`;
   document.getElementById('legendWork').textContent = `Work ${fmtTime(settings.workStart)}–${fmtTime(settings.workEnd)}`;
-  document.getElementById('fitTimeLabel').textContent = `Cult.fit · ${fmtTime(settings.fitStart)} – ${fmtTime(settings.fitEnd)}`;
-  document.getElementById('skillTimeLabel').textContent = `KodeKloud + Certs · ${fmtTime(settings.skillStart)} – ${fmtTime(settings.skillEnd)}`;
+  document.getElementById('fitTimeLabel').textContent = `${fmtTime(settings.fitStart)} – ${fmtTime(settings.fitEnd)}`;
+  document.getElementById('skillTimeLabel').textContent = `${fmtTime(settings.skillStart)} – ${fmtTime(settings.skillEnd)}`;
   document.getElementById('startWeightLabel').textContent = `${settings.startWeight} kg`;
   document.getElementById('targetWeightLabel').textContent = `${settings.targetWeight} kg`;
+  document.getElementById('sleepLabel').textContent = settings.sleepTarget || DEFAULT_SETTINGS.sleepTarget;
+  document.getElementById('proteinLabel').textContent = settings.proteinTarget || DEFAULT_SETTINGS.proteinTarget;
+  document.getElementById('waterLabel').textContent = settings.waterTarget || DEFAULT_SETTINGS.waterTarget;
   renderDayCounter();
 }
 
@@ -880,6 +924,9 @@ function fillSettingsForm(){
   document.getElementById('setWorkEnd').value = settings.workEnd;
   document.getElementById('setStartWeight').value = settings.startWeight;
   document.getElementById('setTargetWeight').value = settings.targetWeight;
+  document.getElementById('setSleepTarget').value = settings.sleepTarget || '';
+  document.getElementById('setProteinTarget').value = settings.proteinTarget || '';
+  document.getElementById('setWaterTarget').value = settings.waterTarget || '';
 }
 
 const statusMsg = document.getElementById('statusMsg');
@@ -896,12 +943,66 @@ function getInitials(name){
   return initials.toUpperCase();
 }
 const profileBtn = document.getElementById('profileBtn');
-function updateAvatar(){ profileBtn.textContent = getInitials(profile.name); }
+const photoPreview = document.getElementById('photoPreview');
+let pendingPhotoURL = undefined; // undefined = no change staged; '' = removal staged
+
+function updateAvatar(){
+  const photo = pendingPhotoURL !== undefined ? pendingPhotoURL : profile.photoURL;
+  if(photo){
+    profileBtn.style.backgroundImage = `url(${photo})`;
+    profileBtn.textContent = '';
+  } else {
+    profileBtn.style.backgroundImage = 'none';
+    profileBtn.textContent = getInitials(profile.name);
+  }
+}
+
+function updatePhotoPreview(){
+  const photo = pendingPhotoURL !== undefined ? pendingPhotoURL : profile.photoURL;
+  if(photo){
+    photoPreview.style.backgroundImage = `url(${photo})`;
+    photoPreview.textContent = '';
+  } else {
+    photoPreview.style.backgroundImage = 'none';
+    photoPreview.textContent = '👤';
+  }
+}
+
+document.getElementById('setPhotoInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const size = 200;
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const minSide = Math.min(img.width, img.height);
+      const sx = (img.width - minSide)/2, sy = (img.height - minSide)/2;
+      ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+      pendingPhotoURL = canvas.toDataURL('image/jpeg', 0.75);
+      updatePhotoPreview();
+      updateAvatar();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('removePhotoBtn').addEventListener('click', ()=>{
+  pendingPhotoURL = '';
+  updatePhotoPreview();
+  updateAvatar();
+});
 
 function fillProfileForm(){
   document.getElementById('setName').value = profile.name;
   document.getElementById('setSex').value = profile.sex;
   document.getElementById('setAge').value = profile.age;
+  pendingPhotoURL = undefined;
+  updatePhotoPreview();
 }
 
 const drawer = document.getElementById('drawer');
@@ -961,7 +1062,6 @@ const sleepCheck = document.getElementById('sleepCheck');
 const proteinCheck = document.getElementById('proteinCheck');
 const waterCheck = document.getElementById('waterCheck');
 const moveBreakCheck = document.getElementById('moveBreakCheck');
-const caffeineCheck = document.getElementById('caffeineCheck');
 
 function renderDay(){
   fitCheck.classList.toggle('done', !!dayData.fitnessDone);
@@ -979,8 +1079,6 @@ function renderDay(){
   waterCheck.setAttribute('aria-checked', !!dayData.waterDone);
   moveBreakCheck.classList.toggle('done', !!dayData.moveBreakDone);
   moveBreakCheck.setAttribute('aria-checked', !!dayData.moveBreakDone);
-  caffeineCheck.classList.toggle('done', !!dayData.caffeineDone);
-  caffeineCheck.setAttribute('aria-checked', !!dayData.caffeineDone);
 }
 
 fitCheck.addEventListener('click', ()=>{ dayData.fitnessDone = !dayData.fitnessDone; renderDay(); saveDay(); refreshStreak(); flash(dayData.fitnessDone?'Fitness logged ✓':'Unmarked'); });
@@ -999,7 +1097,6 @@ wireMiniCheck(sleepCheck, 'sleepDone', 'Sleep logged');
 wireMiniCheck(proteinCheck, 'proteinDone', 'Protein logged');
 wireMiniCheck(waterCheck, 'waterDone', 'Water logged');
 wireMiniCheck(moveBreakCheck, 'moveBreakDone', 'Movement break logged');
-wireMiniCheck(caffeineCheck, 'caffeineDone', 'Caffeine cutoff kept');
 
 /* ---------------- weight log ---------------- */
 const weightInput = document.getElementById('weightInput');
@@ -1235,7 +1332,10 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
     workStart: document.getElementById('setWorkStart').value,
     workEnd: document.getElementById('setWorkEnd').value,
     startWeight: parseFloat(document.getElementById('setStartWeight').value) || settings.startWeight,
-    targetWeight: parseFloat(document.getElementById('setTargetWeight').value) || settings.targetWeight
+    targetWeight: parseFloat(document.getElementById('setTargetWeight').value) || settings.targetWeight,
+    sleepTarget: document.getElementById('setSleepTarget').value.trim() || DEFAULT_SETTINGS.sleepTarget,
+    proteinTarget: document.getElementById('setProteinTarget').value.trim() || DEFAULT_SETTINGS.proteinTarget,
+    waterTarget: document.getElementById('setWaterTarget').value.trim() || DEFAULT_SETTINGS.waterTarget
   };
   if(toMinutes(next.fitEnd) <= toMinutes(next.fitStart) ||
      toMinutes(next.skillEnd) <= toMinutes(next.skillStart) ||
@@ -1248,9 +1348,11 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
   const nextProfile = {
     name: document.getElementById('setName').value.trim(),
     sex: document.getElementById('setSex').value,
-    age: document.getElementById('setAge').value
+    age: document.getElementById('setAge').value,
+    photoURL: pendingPhotoURL !== undefined ? pendingPhotoURL : (profile.photoURL || '')
   };
   await saveProfileDoc(nextProfile);
+  pendingPhotoURL = undefined;
   updateAvatar();
 
   applySettings();
