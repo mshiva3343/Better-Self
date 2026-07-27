@@ -218,6 +218,27 @@
   .btn.teal{background:var(--teal);color:#062522;border-color:var(--teal);}
 
   .weight-row{display:flex;gap:10px;align-items:center;}
+  .measure-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .measure-deltas{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:12px;
+  }
+  .delta-chip{
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:4px 10px;
+    font-size:11px;
+    color:var(--text-muted);
+  }
+  .delta-chip b{color:var(--teal);}
+  .delta-chip b.down{color:var(--good);}
   .weight-stat{
     display:flex;
     justify-content:space-between;
@@ -707,16 +728,28 @@
   </div>
 
   <div class="card">
-    <div class="card-title" style="margin-bottom:10px;">Weight Check-in</div>
-    <div class="weight-row">
-      <input type="number" id="weightInput" placeholder="kg" step="0.1" style="flex:1;">
-      <button class="btn gold" id="logWeightBtn">Log</button>
+    <div class="card-title" style="margin-bottom:2px;">Body Measurements</div>
+    <div class="nn-sub" style="margin-bottom:12px;">Every 10 days, same conditions — morning, before food. Weight and waist matter most; the rest are optional.</div>
+
+    <div class="weight-row" style="margin-bottom:10px;">
+      <input type="number" id="weightInput" placeholder="Weight (kg)" step="0.1" style="flex:1;">
     </div>
+    <div class="measure-grid">
+      <input type="number" id="waistInput" placeholder="Waist (cm)" step="0.1">
+      <input type="number" id="chestInput" placeholder="Chest (cm)" step="0.1">
+      <input type="number" id="armInput" placeholder="Arm (cm)" step="0.1">
+      <input type="number" id="thighInput" placeholder="Thigh (cm)" step="0.1">
+      <input type="number" id="rhrInput" placeholder="Resting HR (bpm)" step="1">
+    </div>
+    <input type="text" id="measureNoteInput" placeholder="Notes (optional)" style="margin-top:8px;margin-bottom:10px;">
+    <button class="btn gold" id="logWeightBtn" style="width:100%;">Log Entry</button>
+
     <div class="weight-stat">
       <span>Start: <b id="startWeightLabel">97 kg</b></span>
       <span>Latest: <b id="latestWeight">—</b></span>
       <span>Target: <b id="targetWeightLabel">75 kg</b></span>
     </div>
+    <div class="measure-deltas" id="measureDeltas"></div>
   </div>
 
   <div class="card">
@@ -1106,28 +1139,67 @@ wireMiniCheck(proteinCheck, 'proteinDone', 'Protein logged');
 wireMiniCheck(waterCheck, 'waterDone', 'Water logged');
 wireMiniCheck(moveBreakCheck, 'moveBreakDone', 'Movement break logged');
 
-/* ---------------- weight log ---------------- */
+/* ---------------- body measurements log ---------------- */
 const weightInput = document.getElementById('weightInput');
+const waistInput = document.getElementById('waistInput');
+const chestInput = document.getElementById('chestInput');
+const armInput = document.getElementById('armInput');
+const thighInput = document.getElementById('thighInput');
+const rhrInput = document.getElementById('rhrInput');
+const measureNoteInput = document.getElementById('measureNoteInput');
 const latestWeightEl = document.getElementById('latestWeight');
+const measureDeltasEl = document.getElementById('measureDeltas');
 
 function renderLatestWeight(){
   if(weightLog.length){
     latestWeightEl.textContent = `${weightLog[weightLog.length-1].weight} kg`;
   }
+  renderMeasureDeltas();
+}
+
+function renderMeasureDeltas(){
+  if(!weightLog.length){ measureDeltasEl.innerHTML = ''; return; }
+  const sorted = weightLog.slice().sort((a,b)=> a.date < b.date ? -1 : 1);
+  const first = sorted[0];
+  const latest = sorted[sorted.length-1];
+  const fields = [
+    ['waist','Waist','cm'], ['chest','Chest','cm'], ['arm','Arm','cm'],
+    ['thigh','Thigh','cm'], ['rhr','RHR','bpm']
+  ];
+  let chips = '';
+  fields.forEach(([key,label,unit])=>{
+    if(latest[key]!=null && first[key]!=null){
+      const delta = (latest[key]-first[key]);
+      const sign = delta>0 ? '+' : '';
+      const cls = delta<0 ? 'down' : '';
+      chips += `<span class="delta-chip">${label}: <b class="${cls}">${sign}${delta.toFixed(1)}${unit}</b> vs Day 0</span>`;
+    }
+  });
+  measureDeltasEl.innerHTML = chips;
 }
 
 document.getElementById('logWeightBtn').addEventListener('click', ()=>{
   const val = parseFloat(weightInput.value);
   if(!val || val < 30 || val > 250){ flash('Enter a valid weight'); return; }
+  const entry = { date: today, weight: val };
+  const waist = parseFloat(waistInput.value); if(!isNaN(waist)) entry.waist = waist;
+  const chest = parseFloat(chestInput.value); if(!isNaN(chest)) entry.chest = chest;
+  const arm = parseFloat(armInput.value); if(!isNaN(arm)) entry.arm = arm;
+  const thigh = parseFloat(thighInput.value); if(!isNaN(thigh)) entry.thigh = thigh;
+  const rhr = parseFloat(rhrInput.value); if(!isNaN(rhr)) entry.rhr = rhr;
+  const note = measureNoteInput.value.trim(); if(note) entry.notes = note;
+
   const log = weightLog.slice();
   const existingIdx = log.findIndex(e=>e.date===today);
-  if(existingIdx>=0) log[existingIdx].weight = val;
-  else log.push({date:today, weight:val});
+  if(existingIdx>=0) log[existingIdx] = Object.assign({}, log[existingIdx], entry);
+  else log.push(entry);
   saveWeightLog(log);
+
   latestWeightEl.textContent = `${val} kg`;
-  weightInput.value='';
-  flash('Weight logged ✓');
+  weightInput.value=''; waistInput.value=''; chestInput.value=''; armInput.value=''; thighInput.value=''; rhrInput.value=''; measureNoteInput.value='';
+  flash('Entry logged ✓');
   renderWeightChart();
+  renderMeasureDeltas();
 });
 
 /* ---------------- streak strip ---------------- */
