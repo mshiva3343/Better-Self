@@ -718,13 +718,6 @@
         <div class="nn-label" id="waterLabel">4–5L water</div>
       </div>
     </div>
-    <div class="nn-row">
-      <div class="check-sm" id="moveBreakCheck" tabindex="0" role="checkbox" aria-checked="false" aria-label="Mark movement break during shift">✓</div>
-      <div>
-        <div class="nn-label">Movement break during shift</div>
-        <div class="nn-sub">2–3 min stand/stretch every couple hours</div>
-      </div>
-    </div>
   </div>
 
   <div class="card">
@@ -737,9 +730,6 @@
     <div class="measure-grid">
       <input type="number" id="waistInput" placeholder="Waist (cm)" step="0.1">
       <input type="number" id="chestInput" placeholder="Chest (cm)" step="0.1">
-      <input type="number" id="armInput" placeholder="Arm (cm)" step="0.1">
-      <input type="number" id="thighInput" placeholder="Thigh (cm)" step="0.1">
-      <input type="number" id="rhrInput" placeholder="Resting HR (bpm)" step="1">
     </div>
     <input type="text" id="measureNoteInput" placeholder="Notes (optional)" style="margin-top:8px;margin-bottom:10px;">
     <button class="btn gold" id="logWeightBtn" style="width:100%;">Log Entry</button>
@@ -845,7 +835,7 @@ const DEFAULT_PROFILE = { name:'', sex:'', age:'', photoURL:'' };
 let settings = Object.assign({}, DEFAULT_SETTINGS);
 let profile = Object.assign({}, DEFAULT_PROFILE);
 let weightLog = [];
-let dayData = { fitnessDone:false, fitnessNote:'', skillDone:false, skillHours:2.5, skillNote:'', sleepDone:false, proteinDone:false, waterDone:false, moveBreakDone:false };
+let dayData = { fitnessDone:false, fitnessNote:'', skillDone:false, skillHours:2.5, skillNote:'', sleepDone:false, proteinDone:false, waterDone:false };
 
 function isoDate(d){
   const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
@@ -1102,7 +1092,6 @@ const skillNote = document.getElementById('skillNote');
 const sleepCheck = document.getElementById('sleepCheck');
 const proteinCheck = document.getElementById('proteinCheck');
 const waterCheck = document.getElementById('waterCheck');
-const moveBreakCheck = document.getElementById('moveBreakCheck');
 
 function renderDay(){
   fitCheck.classList.toggle('done', !!dayData.fitnessDone);
@@ -1118,8 +1107,6 @@ function renderDay(){
   proteinCheck.setAttribute('aria-checked', !!dayData.proteinDone);
   waterCheck.classList.toggle('done', !!dayData.waterDone);
   waterCheck.setAttribute('aria-checked', !!dayData.waterDone);
-  moveBreakCheck.classList.toggle('done', !!dayData.moveBreakDone);
-  moveBreakCheck.setAttribute('aria-checked', !!dayData.moveBreakDone);
 }
 
 fitCheck.addEventListener('click', ()=>{ dayData.fitnessDone = !dayData.fitnessDone; renderDay(); saveDay(); refreshStreak(); flash(dayData.fitnessDone?'Fitness logged ✓':'Unmarked'); });
@@ -1137,15 +1124,11 @@ function wireMiniCheck(el, field, label){
 wireMiniCheck(sleepCheck, 'sleepDone', 'Sleep logged');
 wireMiniCheck(proteinCheck, 'proteinDone', 'Protein logged');
 wireMiniCheck(waterCheck, 'waterDone', 'Water logged');
-wireMiniCheck(moveBreakCheck, 'moveBreakDone', 'Movement break logged');
 
 /* ---------------- body measurements log ---------------- */
 const weightInput = document.getElementById('weightInput');
 const waistInput = document.getElementById('waistInput');
 const chestInput = document.getElementById('chestInput');
-const armInput = document.getElementById('armInput');
-const thighInput = document.getElementById('thighInput');
-const rhrInput = document.getElementById('rhrInput');
 const measureNoteInput = document.getElementById('measureNoteInput');
 const latestWeightEl = document.getElementById('latestWeight');
 const measureDeltasEl = document.getElementById('measureDeltas');
@@ -1163,8 +1146,7 @@ function renderMeasureDeltas(){
   const first = sorted[0];
   const latest = sorted[sorted.length-1];
   const fields = [
-    ['waist','Waist','cm'], ['chest','Chest','cm'], ['arm','Arm','cm'],
-    ['thigh','Thigh','cm'], ['rhr','RHR','bpm']
+    ['waist','Waist','cm'], ['chest','Chest','cm']
   ];
   let chips = '';
   fields.forEach(([key,label,unit])=>{
@@ -1184,9 +1166,6 @@ document.getElementById('logWeightBtn').addEventListener('click', ()=>{
   const entry = { date: today, weight: val };
   const waist = parseFloat(waistInput.value); if(!isNaN(waist)) entry.waist = waist;
   const chest = parseFloat(chestInput.value); if(!isNaN(chest)) entry.chest = chest;
-  const arm = parseFloat(armInput.value); if(!isNaN(arm)) entry.arm = arm;
-  const thigh = parseFloat(thighInput.value); if(!isNaN(thigh)) entry.thigh = thigh;
-  const rhr = parseFloat(rhrInput.value); if(!isNaN(rhr)) entry.rhr = rhr;
   const note = measureNoteInput.value.trim(); if(note) entry.notes = note;
 
   const log = weightLog.slice();
@@ -1196,7 +1175,7 @@ document.getElementById('logWeightBtn').addEventListener('click', ()=>{
   saveWeightLog(log);
 
   latestWeightEl.textContent = `${val} kg`;
-  weightInput.value=''; waistInput.value=''; chestInput.value=''; armInput.value=''; thighInput.value=''; rhrInput.value=''; measureNoteInput.value='';
+  weightInput.value=''; waistInput.value=''; chestInput.value=''; measureNoteInput.value='';
   flash('Entry logged ✓');
   renderWeightChart();
   renderMeasureDeltas();
